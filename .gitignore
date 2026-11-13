@@ -1,0 +1,16 @@
+node_modules/
+.build/
+runtime/
+__pycache__/
+*.pyc
+data/
+*.log
+.env*
+*.pem
+*.key
+*.p12
+*.cer
+*.zip
+*.coolshot
+*.ab
+.DS_Store

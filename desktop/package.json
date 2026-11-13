@@ -1,0 +1,16 @@
+{
+  "name": "resource-toolkit",
+  "productName": "资源工具",
+  "version": "0.2.0",
+  "private": true,
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "build:mac": "node build.cjs darwin arm64",
+    "build:win": "node build.cjs win32 x64"
+  },
+  "devDependencies": {
+    "electron": "45.3.1",
+    "@electron/packager": "19.0.1"
+  }
+}
