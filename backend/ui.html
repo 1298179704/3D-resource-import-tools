@@ -1,25 +1,117 @@
 <!doctype html><html lang="zh"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>资源工具</title><style>
 :root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#18221f;background:#f4f5f2}*{box-sizing:border-box}body{margin:0}header{max-width:1040px;margin:auto;padding:30px 32px;display:flex;justify-content:space-between;align-items:center}.brand{font-size:17px;font-weight:650;letter-spacing:-.5px}.status{font-size:12px;color:#62736b;display:flex;align-items:center;gap:7px}.dot{width:6px;height:6px;border-radius:50%;background:#88a995}main{max-width:580px;margin:44px auto 60px;padding:0 24px}.progress{display:flex;gap:6px;margin-bottom:38px}.progress i{height:3px;flex:1;border-radius:4px;background:#dfe5df}.progress .done{background:#2c6752}.eyebrow{font-size:12px;color:#7b8981;margin-bottom:13px}h1{font-size:34px;letter-spacing:-1.1px;font-weight:600;margin:0 0 14px;line-height:1.25}.intro{color:#718077;font-size:15px;line-height:1.7;margin:0 0 28px}.card{border:1px solid #e1e6df;border-radius:18px;background:#fff;padding:24px}.drop{display:block;position:relative;border:1px dashed #c5d2c9;border-radius:13px;padding:30px 16px;text-align:center;background:#fafcf9;cursor:pointer}.drop strong{font-size:16px;font-weight:550;display:block}.drop small{display:block;margin-top:8px;color:#8a968e;font-size:12px}.drop input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}.row{padding:15px 0;border-bottom:1px solid #eef1ec;font-size:15px;line-height:1.65}.row:last-child{border-bottom:0}.path{font-size:18px;line-height:1.8;letter-spacing:-.3px}.note{font-size:13px;line-height:1.7;color:#7b8981;margin:18px 0 0}.actions{display:flex;gap:10px;align-items:center;margin-top:28px}button{font:inherit;font-size:14px;cursor:pointer;border:0;border-radius:10px;padding:14px 22px;background:#255943;color:white;font-weight:550}button:disabled{opacity:.4;cursor:wait}.back{background:none;color:#819087;padding-left:0;margin-right:auto}.secondary{background:#e8ede6;color:#44594b}.qr{width:190px;height:190px;display:block;margin:0 auto 18px}.fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field{background:#f4f7f1;border-radius:10px;padding:16px;font-size:12px;color:#7b8981}.field strong{display:block;color:#213e2d;font-size:21px;font-weight:550;margin-top:6px;overflow-wrap:anywhere}.message{font-size:13px;line-height:1.6;color:#a34d2c;min-height:20px;margin-top:18px}.hidden{display:none}details{margin-top:24px;font-size:12px;color:#8a968e}summary{cursor:pointer;padding:6px 0}pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto;font-size:11px}.success{color:#2c6752;font-size:28px;margin-bottom:16px}footer{font-size:11px;color:#9aa49c;text-align:center;margin-top:40px}@media(max-width:600px){main{margin-top:22px}header{padding:24px}h1{font-size:29px}.fields{grid-template-columns:1fr}}
 .taskChoices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.card:has(.taskChoices){padding:0;border:0;background:transparent}.taskChoice{position:relative;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:30px 16px;border:1px solid #dce5dc;border-radius:16px;background:#fff;cursor:pointer;text-align:center}.taskChoice:has(input:checked){border-color:#255943;background:#edf4ee}.taskChoice input{position:absolute;left:16px;top:16px;accent-color:#255943}.taskChoice strong{font-size:18px;line-height:1.5;font-weight:600}.taskChoice span{font-size:12px;line-height:1.7;color:#718077}.connectionHelp{margin-top:22px;color:#718077;font-size:13px;line-height:1.8}.connectionHelp p{margin:6px 0}</style><header><div class="brand">资源工具 <span style="color:#9aa59d;font-weight:400">/ 本地助手</span></div><div style="display:flex;align-items:center;gap:20px"><button class="back" style="margin:0;padding:0" onclick="quitHelper()">退出助手</button><div class="status"><span class="dot"></span><span id="status">本机连接</span></div></div></header><main><div class="progress" id="progress"></div><div class="eyebrow" id="eyebrow"></div><h1 id="title"></h1><p class="intro" id="intro"></p><div class="card" id="content"></div><div id="connectionHelp" class="connectionHelp hidden"><p>检查电脑与手机连接的 Wi-Fi 名称，操作期间保持电脑开机。</p><p>电脑使用网线时，需与手机处在同一个可互访的局域网。</p></div><div class="message" id="message" role="status"></div><div class="actions"><button class="back" id="back" onclick="move(-1)">返回</button><button id="next" onclick="next()"></button></div><details><summary>连接遇到问题？</summary><p>确认电脑和手机连接同一个可互访 Wi-Fi。访客网络可能限制设备互访。电脑保持开机，必要时允许防火墙的局域网连接。</p><p>停止助手前，先将手机 Wi-Fi 的「配置代理」设为「关闭」并存储。</p><p><a id="diagnosticDownload">保存日志</a></p><pre id="logs"></pre><button class="secondary" onclick="stopOnly()">停止代理</button></details></main><script>
-const key=new URLSearchParams(location.search).get('key');document.querySelector('#diagnosticDownload').href='/api/diagnostics?key='+key;let step=0,state={},busy=false;let selected=null;let mode='install';
-const steps=[
-{title:'选择要进行的操作',intro:'电脑和 iPhone 需要连接同一个可互访的 Wi-Fi。',body:()=>'<div class="taskChoices"><label class="taskChoice"><input type="radio" name="task" onchange="mode=&#39;capture&#39;"><strong>导出当前手机中的模型</strong><span>保存到电脑，用于编辑或备份</span></label><label class="taskChoice"><input type="radio" name="task" checked onchange="mode=&#39;install&#39;"><strong>替换手机当前模型</strong><span>选择电脑中的模型 ZIP</span></label></div>',button:'已连接，继续'},
-{title:'选择你的资源包',intro:'载入已转换好的 iOS 完整 ZIP。',body:()=>'<label class="drop"><strong id="fileLabel">选择 ZIP 文件</strong><small>点击选择 · 最大 256 MB</small><input type="file" id="file" accept=".zip" onchange="choose(this)"></label><p class="note" id="packageInfo">'+(state.package?.bytes?'已载入 · '+(state.package.bytes/1e6).toFixed(2)+' MB':'文件保存在本机。')+'</p>',button:'载入并开始'},
+
+const key = new URLSearchParams(location.search).get('key');
+const $ = id => document.getElementById(id);
+let step = 0, state = {}, busy = false, selected = null, mode = 'install', pendingAction = null;
+$('diagnosticDownload').href = '/api/diagnostics?key=' + key;
+const steps = [
+{title:'选择要进行的操作',intro:'电脑和 iPhone 需要连接同一个可互访的 Wi-Fi。',body:()=>'<div class="taskChoices"><label class="taskChoice"><input type="radio" name="task" onchange="mode=\'capture\'"><strong>导出当前手机中的模型</strong><span>保存到电脑，用于编辑或备份</span></label><label class="taskChoice"><input type="radio" name="task" checked onchange="mode=\'install\'"><strong>替换手机当前模型</strong><span>选择电脑中的模型 ZIP</span></label></div>',button:'已连接，继续'},
+{title:'选择你的资源包',intro:'载入 iPhone 平台的完整模型 ZIP。',body:()=>'<label class="drop"><strong id="fileLabel">选择 ZIP 文件</strong><small>点击选择 · 最大 256 MB</small><input type="file" accept=".zip" onchange="choose(this)"></label><p class="note">'+(state.package?.bytes?'已载入 · '+(state.package.bytes/1e6).toFixed(2)+' MB':'文件保存在本机。')+'</p>',button:'载入并开始'},
 {title:'用 iPhone 相机扫码',intro:'使用手机的相机扫描二维码，打开网页链接。',body:()=>'<img class="qr" alt="手机设置二维码" src="/qr?key='+key+'"><p class="note" style="text-align:center">在手机页面点击「下载 mitmproxy 证书」，再点「允许」。</p>',button:'证书已下载'},
 {title:'在手机上安装证书',intro:'现在可以切到手机设置，继续看电脑上的指引。',body:()=>'<div class="path">设置 → 通用<br>→ VPN 与设备管理</div><div class="row">点开刚下载的证书，点击「安装」。</div><div class="row">输入手机锁屏密码，按提示完成安装。</div><p class="note">证书名称为 mitmproxy。找不到时，返回上一步重新下载。</p>',button:'已安装，继续'},
-{title:'开启证书信任',intro:'安装后，还需要开启完全信任。',body:()=>'<div class="path">设置 → 通用 → 关于本机<br>→ 证书信任设置</div><div class="row">滑到页面底部，打开刚安装证书旁的开关。</div><p class="note">阅读系统提示后确认。此步骤仅首次安装需要完成。</p>',button:'已开启信任'},
-{title:'填写 Wi-Fi 代理',intro:'设置 → Wi-Fi → 当前网络右侧 ⓘ → 配置代理 → 手动',body:()=>'<div class="fields"><div class="field">服务器<strong>'+ip()+'</strong></div><div class="field">端口<strong>18999</strong></div></div><div class="row">「认证」保持关闭，点右上角「存储」。</div><p class="note">照着电脑填写即可，无需返回手机浏览器。</p>',button:'已存储，继续'},
-{title:'打开车辆页面',intro:'完全退出车辆 App，再打开车辆页面获取资源。',body:()=>'<p id="installStatus">请在手机上打开车辆页面，出现「获取资源」时点击下载。</p><p class="note">下载后保持代理开启，退出并重新打开车辆应用，完成第二次更新。</p>',button:'效果已确认'},
-{title:'最后，关闭手机代理',intro:'完成操作后，请关闭手机 Wi-Fi 代理。',body:()=>'<div class="path">设置 → Wi-Fi → 当前网络 ⓘ<br>→ 配置代理 → 关闭 → 存储</div><p class="note">先在手机关闭，再停止电脑代理。否则退出助手后，手机可能无法通过这个 Wi-Fi 正常联网。</p>',button:'手机已关闭，完成'},
-{title:'应用完成',intro:'手机代理已关闭，电脑代理已停止。',body:()=>'<div class="success">✓</div><p class="note">下次使用同一电脑，通常可以复用证书设置。不再使用时，可在手机「VPN 与设备管理」中移除证书。</p>',button:'返回操作选择'}];
+{title:'开启证书信任',intro:'安装后，还需要开启完全信任。',body:()=>'<div class="path">设置 → 通用 → 关于本机<br>→ 证书信任设置</div><div class="row">滑到页面底部，打开当前电脑证书旁的开关。</div>',button:'已开启信任'},
+{title:'填写 Wi-Fi 代理',intro:'设置 → Wi-Fi → 当前网络右侧 ⓘ → 配置代理 → 手动',body:()=>'<div class="fields"><div class="field">服务器<strong>'+ip()+'</strong></div><div class="field">端口<strong>18999</strong></div></div><div class="row">「认证」保持关闭，点右上角「存储」。</div>',button:'已存储，继续'},
+{title:'让新外观显示出来',intro:'在手机多任务界面划掉车辆 App，再打开爱车模型页面。',body:()=>'<p id="installStatus"></p><p class="note" id="installHint"></p>',button:'新外观已显示，继续'},
+{title:'关闭手机 Wi-Fi 代理',intro:'模型已确认保留，现在关闭手机代理。',body:()=>'<div class="path">设置 → Wi-Fi → 当前网络 ⓘ<br>→ 配置代理 → 关闭 → 存储</div><p class="note">关闭后再点击下方按钮，电脑会停止代理。保留代理设置可能影响手机 Wi-Fi 联网。</p>',button:'手机已关闭，停止代理'},
+{title:'检查正常联网后的效果',intro:'保持手机正常联网，划掉 App 后重新进入爱车模型页面两次。',body:()=>'<p>每次保持模型页面前台至少 15 秒，确认新外观仍然保留。</p><p class="note" id="directWait"></p><button class="secondary" onclick="retryDirect()">外观未保留，重新应用</button>',button:'两次均已保留，完成'},
+{title:'应用完成',intro:'手机代理已关闭，电脑代理已停止。',body:()=>'<div class="success">✓</div><p class="note">下次使用同一电脑，通常可以复用证书设置。</p>',button:'返回操作选择'}
+];
 function ip(){try{return new URL(state.phone).hostname}catch{return '等待连接'}}
-function render(){const s=steps[step];document.querySelector('#connectionHelp').classList.toggle('hidden',step!==0);document.querySelector('#progress').innerHTML=steps.slice(0,-1).map((_,i)=>'<i class="'+(i<=step?'done':'')+'"></i>').join('');document.querySelector('#eyebrow').textContent=step===8?'已完成':(step+1)+' / 8';document.querySelector('#title').textContent=s.title;document.querySelector('#intro').textContent=s.intro;document.querySelector('#content').innerHTML=s.body();if(step===8&&mode==='capture'){document.querySelector('#title').textContent='导出完成';}if(step===6&&mode==='capture'){document.querySelector('#title').textContent='导出手机模型';document.querySelector('#intro').textContent='请在手机上打开车辆页面，保持页面开启。';document.querySelector('#content').innerHTML='<p id="captureStatus">请在手机上打开车辆页面</p><a id="downloadOriginal" class="hidden" href="/api/original?key='+key+'">保存模型到电脑</a>';}document.querySelector('#next').textContent=(step===6&&mode==='capture')?'保存后继续':s.button;document.querySelector('#back').style.visibility=step===0||step===8?'hidden':'visible';document.querySelector('#message').textContent='';if(step===0){let choices=document.querySelectorAll('input[name=task]');if(choices.length)choices[mode==='capture'?0:1].checked=true}}
-function move(n){let target=Math.max(0,Math.min(8,step+n));if(mode==='capture'&&target===1)target=n<0?0:2;step=target;render()}
-function choose(input){selected=input.files[0];document.querySelector('#fileLabel').textContent=selected?.name||'选择 ZIP 文件'}
-async function call(name,data){const r=await fetch('/api/'+name+'?key='+key,{method:'POST',body:data});const d=await r.json();if(!r.ok)throw Error(d.error||'操作失败');return d}
-async function next(){if(busy)return;busy=true;document.querySelector('#next').disabled=true;try{if(step===0&&mode==='capture'){await call('capture');await refresh();step=2;render();return}if(step===6&&mode!=='capture'&&state.diagnostics?.installStage!=='final-served')throw Error('请先完成手机上的两次资源更新');if(step===6&&mode==='capture'&&state.capture?.stage!=='downloaded')throw Error('请等待模型获取完成');if(step===1){if(selected){document.querySelector('#message').textContent='正在校验资源并自动切换，请稍候…';await call('upload',selected);selected=null}else if(!state.package?.bytes)throw Error('请先选择一个 ZIP 文件');await call('start');await refresh()}if(step===7){await call('stop');await refresh()}if(step===8){step=0;render()}else move(1)}catch(e){document.querySelector('#message').textContent=e.message}finally{busy=false;document.querySelector('#next').disabled=step===6&&(mode==='capture'?state.capture?.stage!=='downloaded':state.diagnostics?.installStage!=='final-served')}}
-async function quitHelper(){if(!confirm('请先将手机 Wi-Fi 代理设为关闭。退出助手会停止代理并释放端口。继续退出？'))return;try{await call('quit');clearInterval(refreshTimer);document.body.innerHTML='<main><h1>助手已退出</h1><p>本地服务和代理已停止。现在可以关闭这个页面。</p></main>'}catch(e){document.querySelector('#message').textContent=e.message}}
-async function stopOnly(){try{await call('stop');await refresh();document.querySelector('#message').textContent='电脑代理已停止，请确认手机 Wi-Fi 代理也已关闭。'}catch(e){document.querySelector('#message').textContent=e.message}}
-async function refresh(){let r=await fetch('/api/status?key='+key);if(!r.ok)throw Error('连接已失效，请从本机重新打开助手');state=await r.json();document.querySelector('.brand').title=state.version||'';document.querySelector('#status').textContent=state.running?'代理运行中':'代理已停止';document.querySelector('#logs').textContent=state.log||'暂无记录';const cs=document.querySelector('#captureStatus');if(cs){let stage=state.capture?.stage;let messages={waiting:'请在手机上打开车辆页面',downloading:'正在获取模型，请保持手机页面开启…',waiting_download:'请在手机车辆页面点击获取资源',downloaded:'模型已获取，请保存到电脑'};let message=messages[stage]||state.capture?.message||'请在手机上打开车辆页面';if(stage==='waiting'&&state.diagnostics?.tlsFailure)message=state.diagnostics.tlsFailure.message;cs.textContent=message;};const installStatus=document.querySelector('#installStatus');if(installStatus){const stage=state.diagnostics?.installStage;installStatus.textContent=stage==='error'?state.diagnostics.installError:stage==='final-served'?'资源已发送，请确认手机模型显示正常。':stage==='trigger-served'?'首次资源已发送，请保持代理开启，退出并重新打开车辆应用。':'请在手机上打开车辆页面，出现「获取资源」时点击下载。';document.querySelector('#next').disabled=busy||stage!=='final-served';}const link=document.querySelector('#downloadOriginal');if(link)link.classList.toggle('hidden',state.capture?.stage!=='downloaded');if(step===6&&mode==='capture')document.querySelector('#next').disabled=busy||state.capture?.stage!=='downloaded';document.querySelector('#logs').textContent=JSON.stringify(state.diagnostics||{},null,2)+'\n'+(state.log||'')}
-refresh().then(render).catch(e=>document.querySelector('#message').textContent=e.message);const refreshTimer=setInterval(()=>refresh().catch(()=>document.querySelector('#status').textContent='助手未连接'),3000);
+function render(){
+ const s=steps[step];
+ $('connectionHelp').classList.toggle('hidden',step!==0);
+ $('progress').innerHTML=steps.slice(0,8).map((_,i)=>'<i class="'+(i<=step?'done':'')+'"></i>').join('');
+ $('eyebrow').textContent=step>=8?'最后确认':(step+1)+' / 8';
+ $('title').textContent=s.title; $('intro').textContent=s.intro; $('content').innerHTML=s.body();
+ $('next').textContent=s.button; $('next').disabled=busy; $('back').style.visibility=step===0||step>=8?'hidden':'visible'; $('message').textContent='';
+ if(step===0){const inputs=document.querySelectorAll('input[name=task]');inputs[mode==='capture'?0:1].checked=true}
+ if(step===6&&mode==='capture'){
+  $('title').textContent='导出手机模型'; $('intro').textContent='划掉车辆 App 后重新进入爱车模型页面，保持前台至少 15 秒。';
+  $('content').innerHTML='<p id="captureStatus"></p><a id="downloadOriginal" class="hidden" href="/api/original?key='+key+'">保存模型到电脑</a>'; $('next').textContent='保存后继续'; updateCapture();
+ }
+ if(step===9&&mode==='capture'){$('title').textContent='导出完成';$('intro').textContent='手机代理已关闭，模型已保存到电脑。'}
+ updateInstall();
+}
+function move(n){let target=Math.max(0,Math.min(9,step+n));if(mode==='capture'&&target===1)target=n<0?0:2;step=target;render()}
+function choose(input){selected=input.files[0];$('fileLabel').textContent=selected?.name||'选择 ZIP 文件'}
+async function call(name,data){const response=await fetch('/api/'+name+'?key='+key,{method:'POST',body:data});const body=await response.json();if(!response.ok)throw Error(body.error||'操作失败');return body}
+function remaining(timestamp){return timestamp?Math.max(0,Math.ceil((state.diagnostics?.waitSeconds||15)-(Date.now()/1000-timestamp))):null}
+function updateInstall(){
+ if(step===8&&mode==='install'){
+  const seconds=Math.max(0,Math.ceil(30-(Date.now()/1000-(state.stoppedAt||Date.now()/1000))));
+  $('next').disabled=busy||seconds>0;
+  if($('directWait'))$('directWait').textContent=seconds>0?'请完成两次重开，建议再等待 '+seconds+' 秒。':'确认两次都保留新外观后，再点击完成。';
+  return;
+ }
+ if(step!==6||mode==='capture')return;
+ const d=state.diagnostics||{}, phase=d.phase||'trigger';
+ const timestamp=phase==='trigger'?d.triggerPreparedAt:phase==='final'?d.finalPreparedAt:d.verificationStartedAt;
+ const seconds=remaining(timestamp);
+ const readyStage={trigger:'await-model-confirmation',final:'await-final-confirmation',verify:'await-keep-confirmation'};
+ if(d.installStage==='error'){
+  $('title').textContent='请重新应用资源';$('intro').textContent='保持手机代理开启，重新开始传输。';$('installStatus').textContent=d.installError||'本次资源状态已变化。';$('installHint').textContent='重新开始后，按页面提示再次确认手机外观。';$('next').textContent='重新应用';$('next').disabled=busy||Boolean(pendingAction);return;
+ }
+ if(phase==='final'){
+  $('title').textContent='完成资源收尾';$('intro').textContent='再划掉车辆 App，重新进入爱车模型页面。';$('next').textContent='已重开且外观保留';
+ }else if(phase==='verify'){
+  $('title').textContent='确认重开后仍保留';$('intro').textContent='最后再划掉 App，重新进入爱车模型页面。';$('next').textContent='新外观已保留，继续';
+ }else{
+  $('title').textContent='让新外观显示出来';$('intro').textContent='在手机多任务界面划掉车辆 App，再打开爱车模型页面。';$('next').textContent='新外观已显示，继续';
+ }
+ if(!state.running){$('installStatus').textContent='电脑代理已停止，请重新开始。';$('next').textContent='重新开始';$('next').disabled=busy;return}
+ if(pendingAction){$('installStatus').textContent='正在准备下一步…';$('next').disabled=true;return}
+ $('installStatus').textContent=seconds===null?(phase==='verify'?'等待手机重新打开模型页面…':d.detectedFilename?'等待手机继续处理资源…':'等待手机打开爱车模型页面…'):seconds>0?'请保持模型页面，建议继续停留 '+seconds+' 秒。':'已达到建议等待时间，请核对手机外观。';
+ $('installHint').textContent=phase==='trigger'?'保持 App 前台至少 15 秒。若仍是原厂外观，划掉 App 后重开并继续等待，直到新外观出现。':'保持 App 前台至少 15 秒，确认新外观仍然保留。整个过程保持手机代理开启。';
+ $('next').disabled=busy||d.installStage!==readyStage[phase]||seconds!==0;
+}
+function updateCapture(){
+ if(!document.querySelector('#captureStatus'))return;
+ const stage=state.capture?.stage;
+ const messages={waiting:'等待手机打开模型页面…',downloading:'正在保存模型，请保持页面开启…',waiting_download:'请划掉 App 后重开模型页面，保持前台至少 15 秒。',downloaded:'模型已准备好，请保存到电脑。'};
+ $('captureStatus').textContent=state.diagnostics?.tlsFailure?.message||messages[stage]||state.capture?.message||messages.waiting;
+ $('downloadOriginal').classList.toggle('hidden',stage!=='downloaded');$('next').disabled=busy||stage!=='downloaded';
+}
+async function retryDirect(){
+ if(busy)return;busy=true;
+ try{await call('start');await refresh();pendingAction=null;step=5;render()}
+ catch(error){$('message').textContent=error.message}
+ finally{busy=false;$('next').disabled=false}
+}
+async function next(){
+ if(busy)return;busy=true;$('next').disabled=true;
+ try{
+  if(step===0&&mode==='capture'){await call('capture');await refresh();step=2;render();return}
+  if(step===1){if(selected){$('message').textContent='正在校验资源，请稍候…';await call('upload',selected);selected=null}else if(!state.package?.bytes)throw Error('请先选择一个 ZIP 文件');await call('start');await refresh()}
+  if(step===6){
+   if(mode==='capture'){if(state.capture?.stage!=='downloaded')throw Error('请等待模型准备好后保存');move(1);return}
+   const d=state.diagnostics||{};
+   if(!state.running||d.installStage==='error'){pendingAction=null;await call('start');await refresh();render();return}
+   const action={trigger:'confirm-model',final:'confirm-final',verify:'confirm-keep'}[d.phase];
+   if(!action)throw Error('状态正在更新，请稍候');
+   await call(action,JSON.stringify({session:d.session,confirmed:true}));pendingAction=action;await refresh();return;
+  }
+  if(step===7){await call('stop');await refresh();step=mode==='capture'?9:8;render();return}
+  if(step===8){await call('confirm-disconnected',JSON.stringify({session:state.diagnostics?.session,confirmed:true}));step=9;render();return}
+  if(step===9){step=0;render();return}
+  move(1);
+ }catch(error){$('message').textContent=error.message;pendingAction=null}
+ finally{busy=false;$('next').disabled=false;updateInstall();if(step===6&&mode==='capture')updateCapture()}
+}
+function interruptionMessage(){return state.running&&state.diagnostics?.mode==='install'&&state.diagnostics.phase!=='complete'?'资源收尾尚未完成，现在中止可能恢复原厂。请先关闭手机 Wi-Fi 代理。确认中止？':'请先关闭手机 Wi-Fi 代理。继续退出助手？'}
+async function quitHelper(){if(!confirm(interruptionMessage()))return;try{await call('quit');clearInterval(refreshTimer);clearInterval(countdownTimer);document.body.innerHTML='<main><h1>助手已退出</h1><p>本地服务和代理已停止。</p></main>'}catch(error){$('message').textContent=error.message}}
+async function stopOnly(){if(state.running&&state.diagnostics?.mode==='install'&&state.diagnostics.phase!=='complete'&&!confirm(interruptionMessage()))return;try{await call('stop');await refresh();$('message').textContent='电脑代理已停止，请确认手机 Wi-Fi 代理也已关闭。'}catch(error){$('message').textContent=error.message}}
+async function refresh(){
+ const response=await fetch('/api/status?key='+key);if(!response.ok)throw Error('连接已失效，请重新打开助手');state=await response.json();
+ $('status').textContent=state.running?'代理运行中':'代理已停止';$('logs').textContent=JSON.stringify(state.diagnostics||{},null,2)+'\n'+(state.log||'');
+ const expected={'confirm-model':'final','confirm-final':'verify','confirm-keep':'complete'};
+ if(pendingAction&&state.diagnostics?.phase===expected[pendingAction]){pendingAction=null;if(state.diagnostics.phase==='complete'){step=7}render()}
+ if(step===7&&mode==='install'&&state.diagnostics?.installStage==='error'){step=6;render()}
+ updateInstall();updateCapture();
+}
+refresh().then(render).catch(error=>$('message').textContent=error.message);
+const refreshTimer=setInterval(()=>refresh().catch(()=>$('status').textContent='助手未连接'),2000);
+const countdownTimer=setInterval(updateInstall,1000);
+
 </script></html>

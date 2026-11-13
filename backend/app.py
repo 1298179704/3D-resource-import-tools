@@ -33,7 +33,7 @@ STATE = Path(os.environ.get('RESOURCE_TOOL_DATA', str(DEFAULT_DATA if FROZEN els
 STATE.mkdir(parents=True, exist_ok=True)
 if not (STATE / 'service-profile.json').exists() and (ROOT / 'service-profile.json').exists():
     shutil.copyfile(ROOT / 'service-profile.json', STATE / 'service-profile.json')
-VERSION = '2026-11-13-resource-toolkit-020'
+VERSION = '2026-11-13-resource-toolkit-0.2.1'
 TOKEN = os.environ.get('RESOURCE_TOOL_CONTROL_TOKEN') or secrets.token_urlsafe(24)
 PHONE_TOKEN = secrets.token_urlsafe(24)
 LOCK = threading.RLock()
@@ -43,6 +43,7 @@ PORT = 18900
 PROXY_PORT = 18999
 LOG = STATE / 'proxy.log'
 LOG_HANDLE = None
+STOPPED_AT = 0
 
 
 def local_ip():
@@ -73,7 +74,7 @@ def validate(payload):
 
 
 def stop():
-    global PROCESS, LOG_HANDLE
+    global PROCESS, LOG_HANDLE, STOPPED_AT
     with LOCK:
         if PROCESS and PROCESS.poll() is None:
             PROCESS.terminate()
@@ -83,6 +84,7 @@ def stop():
                 PROCESS.kill()
                 PROCESS.wait()
         PROCESS = None
+        STOPPED_AT = time.time()
         if LOG_HANDLE:
             LOG_HANDLE.close()
             LOG_HANDLE = None
@@ -118,6 +120,7 @@ def start(mode="install"):
         profile = json.loads(profile_path.read_text())
         allowed = '^(' + '|'.join(re.escape(profile[k]) for k in ('metadata_host', 'download_host')) + '):443$'
         (STATE / 'connection-status.json').unlink(missing_ok=True)
+        (STATE / 'install-control.json').unlink(missing_ok=True)
         LOG_HANDLE = LOG.open('w', encoding='utf-8')
         prefix = [executable, str(ROOT / 'proxy_runner.py')] if os.name == 'nt' and portable_python.exists() else [executable]
         PROCESS = subprocess.Popen(prefix + ['--listen-host', local_ip(), '--listen-port', str(PROXY_PORT), '--set', 'confdir=' + str(STATE / 'certificates'), '--set', 'flow_detail=0', '--allow-hosts', allowed, '-s', str(STATE / 'proxy_addon.py')], stdout=LOG_HANDLE, stderr=subprocess.STDOUT, env={**os.environ, 'PYTHONUNBUFFERED': '1', 'RESOURCE_TOOL_MODE': mode, 'RESOURCE_TOOL_PROBE_TOKEN': PHONE_TOKEN})
@@ -134,6 +137,52 @@ def start(mode="install"):
             time.sleep(0.2)
         stop()
         raise ValueError('代理启动超时，请查看日志。')
+
+
+def confirm_installation(action, data):
+    if not PROCESS or PROCESS.poll() is not None:
+        raise ValueError('代理已停止，请重新开始。')
+    status = json.loads((STATE / 'connection-status.json').read_text(encoding='utf-8'))
+    transitions = {
+        'confirm-model': ('trigger', 'await-model-confirmation', 'triggerPreparedAt'),
+        'confirm-final': ('final', 'await-final-confirmation', 'finalPreparedAt'),
+        'confirm-keep': ('verify', 'await-keep-confirmation', 'verificationStartedAt'),
+    }
+    phase, stage, timestamp = transitions[action]
+    if data.get('session') != status.get('session') or status.get('selectedMd5') != INFO.get('md5'):
+        raise ValueError('资源任务已更新，请按当前页面继续。')
+    if data.get('confirmed') is not True:
+        raise ValueError('请先确认手机上的模型显示结果。')
+    if status.get('phase') != phase or status.get('installStage') != stage:
+        raise ValueError(status.get('installError') or '请先完成当前手机操作。')
+    if time.time() - status.get(timestamp, time.time()) < 15:
+        raise ValueError('请在手机模型页面至少停留 15 秒，并确认外观。')
+    control = STATE / 'install-control.json'
+    if control.exists():
+        previous = json.loads(control.read_text())
+        if previous.get('session') == status['session'] and previous.get('action') == action:
+            return {'queued': True}
+    command = {'id': secrets.token_hex(16), 'session': status['session'], 'payloadMd5': INFO['md5'], 'action': action}
+    temporary = control.with_suffix('.tmp')
+    temporary.write_text(json.dumps(command), encoding='utf-8')
+    temporary.replace(control)
+    return {'queued': True}
+
+
+def recent_events(name):
+    try:
+        lines = (STATE / name).read_text(encoding='utf-8', errors='replace').splitlines()[-200:]
+    except OSError:
+        return []
+    events = []
+    for line in lines:
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(event, dict):
+            events.append(event)
+    return events
 
 
 PAGE = (ROOT / 'ui.html').read_text(encoding='utf-8')
@@ -197,6 +246,8 @@ class Handler(BaseHTTPRequestHandler):
                 report[name] = json.loads(file.read_text(encoding='utf-8')) if file.exists() else None
             profile = json.loads((STATE / 'service-profile.json').read_text()) if (STATE / 'service-profile.json').exists() else {}
             report['selectedPackage'] = INFO
+            report['installationEvents'] = recent_events('install-events.jsonl')
+            report['androidEvents'] = recent_events('android-events.jsonl')
             return self.reply(200, json.dumps(report, ensure_ascii=False, indent=2), 'application/json')
         if path == '/api/android-original':
             resource = STATE / 'android-original.zip'
@@ -219,7 +270,7 @@ class Handler(BaseHTTPRequestHandler):
             with LOCK:
                 running = bool(PROCESS and PROCESS.poll() is None)
                 log = LOG.read_text(errors='replace')[-12000:] if LOG.exists() else ''
-                return self.reply(200, json.dumps({'version': VERSION, 'diagnostics': json.loads((STATE / 'connection-status.json').read_text(encoding='utf-8')) if (STATE / 'connection-status.json').exists() else {}, 'probeUrl': 'http://local-helper.invalid/check?key=' + PHONE_TOKEN, 'package': INFO, 'running': running, 'phone': f'http://{local_ip()}:{PORT}/phone?key={PHONE_TOKEN}', 'log': log, 'capture': json.loads((STATE / 'capture-status.json').read_text(encoding='utf-8')) if (STATE / 'capture-status.json').exists() else None}), 'application/json')
+                return self.reply(200, json.dumps({'version': VERSION, 'diagnostics': json.loads((STATE / 'connection-status.json').read_text(encoding='utf-8')) if (STATE / 'connection-status.json').exists() else {}, 'probeUrl': 'http://local-helper.invalid/check?key=' + PHONE_TOKEN, 'package': INFO, 'running': running, 'stoppedAt': STOPPED_AT, 'phone': f'http://{local_ip()}:{PORT}/phone?key={PHONE_TOKEN}', 'log': log, 'capture': json.loads((STATE / 'capture-status.json').read_text(encoding='utf-8')) if (STATE / 'capture-status.json').exists() else None}), 'application/json')
         return self.reply(404, '未找到')
 
     def do_POST(self):
@@ -229,6 +280,28 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(403, '{}', 'application/json')
         try:
             with LOCK:
+                if path == '/api/confirm-disconnected':
+                    size = int(self.headers.get('Content-Length', '0'))
+                    if not 0 < size <= 2048:
+                        raise ValueError('确认信息无效')
+                    data = json.loads(self.rfile.read(size))
+                    status = json.loads((STATE / 'connection-status.json').read_text())
+                    if PROCESS and PROCESS.poll() is None:
+                        raise ValueError('请先关闭手机代理并停止电脑代理。')
+                    if data.get('session') != status.get('session') or status.get('phase') != 'complete' or status.get('installStage') != 'complete' or status.get('selectedMd5') != INFO.get('md5'):
+                        raise ValueError('请先完成资源收尾与保留验证。')
+                    if data.get('confirmed') is not True or time.time() - STOPPED_AT < 30:
+                        raise ValueError('请完成两次联网重开，每次保持模型页面至少 15 秒。')
+                    with (STATE / 'install-events.jsonl').open('a', encoding='utf-8') as stream:
+                        stream.write(json.dumps({'time': time.time(), 'session': status['session'], 'event': 'direct-restarts-user-confirmed', 'userConfirmed': True, 'actualZipMd5': INFO['md5']}) + '\n')
+                    return self.reply(200, '{}', 'application/json')
+                if path in ('/api/confirm-model', '/api/confirm-final', '/api/confirm-keep'):
+                    size = int(self.headers.get('Content-Length', '0'))
+                    if not 0 < size <= 2048:
+                        raise ValueError('确认信息无效')
+                    data = json.loads(self.rfile.read(size))
+                    result = confirm_installation(path.rsplit('/', 1)[-1], data)
+                    return self.reply(200, json.dumps(result), 'application/json')
                 if path == '/api/android':
                     size = int(self.headers.get('Content-Length', '0'))
                     if not 0 < size <= 350 * 1024 * 1024:

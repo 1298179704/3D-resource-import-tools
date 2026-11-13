@@ -1,5 +1,6 @@
 """Build on the target OS. Dependencies are installed on the build machine only."""
 import argparse
+import os
 import plistlib
 import shutil
 import subprocess
@@ -11,6 +12,10 @@ parser.add_argument('--proxy', required=True, type=Path, help='macOS mitmproxy.a
 parser.add_argument('--profile', required=True, type=Path, help='Service profile JSON')
 parser.add_argument('--output', required=True, type=Path)
 args = parser.parse_args()
+args.proxy = args.proxy.resolve()
+args.profile = args.profile.resolve()
+if not args.proxy.exists() or not args.profile.is_file():
+    parser.error('Proxy runtime or service profile does not exist')
 source = Path(__file__).resolve().parent
 output = args.output.resolve()
 output.mkdir(parents=True, exist_ok=True)
@@ -20,7 +25,7 @@ staging = output.parent / 'build-assets'
 staging.mkdir(exist_ok=True)
 shutil.copyfile(args.profile, staging / 'service-profile.json')
 command[-1:-1] = ['--add-data', str(staging / 'service-profile.json') + ':.']
-subprocess.run(command, check=True)
+subprocess.run(command, check=True, env={**os.environ, 'PYINSTALLER_CONFIG_DIR': os.environ.get('PYINSTALLER_CONFIG_DIR', str(output.parent / 'pyinstaller-cache'))})
 runtime = output / 'ResourceTool.app' / 'Contents' / 'Resources' / 'proxy-runtime' if sys.platform == 'darwin' else output / 'ResourceTool' / 'runtime'
 runtime.mkdir(parents=True, exist_ok=True)
 if sys.platform == 'darwin':

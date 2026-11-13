@@ -11,6 +11,20 @@ let quitting = false;
 let operation = false;
 const root = app.isPackaged ? process.resourcesPath : path.join(__dirname, 'runtime');
 const homePage = path.join(__dirname, 'index.html');
+app.setPath('userData', path.join(app.getPath('appData'), 'ResourceToolkit'));
+
+
+function proxyExitOptions(status, destination) {
+  const unfinished = status?.diagnostics?.mode === 'install' && status.diagnostics.phase !== 'complete';
+  return {
+    type: unfinished ? 'warning' : 'question',
+    buttons: ['返回继续', '已关闭手机代理，' + (unfinished ? '中止并' : '') + destination],
+    defaultId: 0,
+    cancelId: 0,
+    message: unfinished ? '资源收尾尚未完成' : '请先关闭 iPhone 的 Wi-Fi 代理',
+    detail: (unfinished ? '现在中止，模型可能在后续启动恢复原厂。建议先完成收尾与保留验证。\n\n' : '') + '设置 → Wi-Fi → 当前网络 ⓘ → 配置代理 → 关闭 → 存储'
+  };
+}
 
 async function request(name, data) {
   if (!endpoint) throw new Error('本地服务尚未启动');
@@ -26,7 +40,24 @@ async function request(name, data) {
   return response.json();
 }
 
+async function migrateLocalSettings() {
+  const destination = app.getPath('userData');
+  await fs.mkdir(destination, { recursive: true });
+  for (const previous of ['资源工具', '酷改派助手', 'Coolgaipai Desktop', 'Coolgaipai']) {
+    const source = path.join(app.getPath('appData'), previous);
+    for (const relative of ['service/certificates', 'service/android-backups', 'backup-prompts.json']) {
+      const target = path.join(destination, relative);
+      try { await fs.access(target); continue; } catch {}
+      const original = path.join(source, relative);
+      try { await fs.access(original); } catch { continue; }
+      await fs.mkdir(path.dirname(target), { recursive: true });
+      await fs.cp(original, target, { recursive: true, errorOnExist: true, force: false });
+    }
+  }
+}
+
 async function startBackend() {
+  await migrateLocalSettings();
   const state = path.join(app.getPath('userData'), 'service');
   await fs.mkdir(state, { recursive: true });
   const service = path.join(root, 'backend');
@@ -64,7 +95,7 @@ function register() {
       let status;
       try { status = await request('status'); } catch {}
       if (status?.running) {
-        const choice = await dialog.showMessageBox(window, { type: 'question', buttons: ['继续当前操作', '已关闭，返回首页'], defaultId: 0, cancelId: 0, message: '返回首页前，请关闭手机 Wi-Fi 代理', detail: '设置 → Wi-Fi → 当前网络 ⓘ → 配置代理 → 关闭 → 存储' });
+        const choice = await dialog.showMessageBox(window, proxyExitOptions(status, '返回首页'));
         if (choice.response !== 1) return { cancelled: true };
         try { await request('stop', {}); }
         catch (error) { await dialog.showMessageBox(window, { type: 'error', message: '暂时无法结束当前操作', detail: error.message }); return { cancelled: true }; }
@@ -138,7 +169,7 @@ async function closeApplication() {
   let status;
   try { status = await request('status'); } catch {}
   if (status?.running) {
-    const result = await dialog.showMessageBox(window, { buttons: ['返回', '已关闭手机代理，退出'], defaultId: 0, cancelId: 0, message: status.diagnostics?.mode==='install'&&status.diagnostics?.installStage!=='final-served'?'资源替换尚未完成，仍要退出？':'请先关闭 iPhone 的 Wi-Fi 代理', detail: '退出前请关闭手机代理。设置 → Wi-Fi → 当前网络 ⓘ → 配置代理 → 关闭 → 存储' });
+    const result = await dialog.showMessageBox(window, proxyExitOptions(status, '退出'));
     if (result.response !== 1) return;
   }
   quitting = true;

@@ -12,9 +12,13 @@
 
 Android 和 iOS 的 Unity Shader/平台目标不同，不能直接互换资源包。首次替换前建议导出备份；恢复时使用同一替换操作选择备份 ZIP。
 
-iPhone 保留本机资源时，助手使用两阶段下载：先返回临时更新标识触发获取，再在下一次资源检查中使用官方资源身份返回相同定制文件。临时标识不代表 ZIP 的真实 MD5；实际传输文件的校验与官方身份分开记录。两阶段完成前保持代理与助手运行。完成后关闭 iPhone 当前 Wi-Fi 的手动代理，再退出助手。
+iPhone 安装流程分为应用、收尾和保留验证。先划掉车辆 App，再重新进入爱车模型页面，保持前台至少 15 秒。新外观可能在后续启动才显示，看到新外观后再确认进入收尾。完成收尾后再次重开验证，随后关闭手机 Wi-Fi 代理，停止电脑代理，正常联网重开两次确认保留。
 
-已在 Mac 上运行的 iOS App 验证官方身份收尾后冷启动保留定制字节。随机触发标识的完整新流程、真实 iPhone 持久化效果和 Windows 实机仍需验收。响应已返回不等于模型已激活；最终需要用户确认。官方资源更新或校验机制变化可能覆盖定制内容，不承诺永久保留。
+助手分别记录 ZIP 的真实 MD5/SHA256 和接口返回的更新标识。收到资源请求或准备好响应字节时，继续等待用户确认手机外观。官方标识收尾前需要用户确认定制模型已启用。检测到官方资源重新下载或目标资源变化时，停止成功判定并提示重新应用。
+
+上述先启用、再收尾的顺序已在 iPhone 的 App 6.10.0、对应 ET5T 资源上观察到退出代理后保留定制颜色。0.2.1 的自动化回放、Mac 启动和界面已验证，完整新版真机流程与 Windows 实机仍需复核。官方后续资源更新可能再次替换模型。
+
+Windows 安装包内部目录与运行数据目录使用英文。数据保存在 `%APPDATA%\ResourceToolkit`，升级时兼容迁移旧版证书和备份。Android 文件通过 ADB 标准输入输出传输，ADB 不接收电脑临时文件路径。写入前检查手机权限，优先使用临时目录校验后切换。手机拒绝创建同级目录时，仅在现有车型目录通过写入检查后使用本地完整备份、原目录写入、逐文件校验与失败回滚。完全拒绝写入时在修改前停止。
 
 ## 开发
 
@@ -75,9 +79,12 @@ ADB 必须来自官方 Android platform-tools，并保留 NOTICE.txt 和 Windows
 ```sh
 python3 tests/resource_identity.py
 python3 tests/configuration_export.py
+python3 tests/android_transport.py
+python3 tests/confirmation_api.py
+node tests/iphone_ui.cjs
 ```
 
-测试覆盖资源身份收尾、分段响应、身份变化保护，以及可选配置协议的哈希绑定。可选 `current_configuration.json` 沿用 `coolgaipai-current-configuration-v1` 协议标识以兼容已有网页；未知配置不猜测，不影响模型导出。iPhone 不要求获取选配信息。
+测试覆盖用户确认后收尾、最低等待时间、分段响应、会话隔离、官方透传验证、Android 中文路径的二进制传输及权限受限时的失败恢复，以及可选配置协议的哈希绑定。可选 `current_configuration.json` 沿用 `coolgaipai-current-configuration-v1` 协议标识以兼容已有网页；未知配置不猜测，不影响模型导出。iPhone 不要求获取选配信息。
 
 ## 开源范围
 

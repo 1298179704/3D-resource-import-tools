@@ -1,0 +1,52 @@
+const vm = require('node:vm');
+const fs = require('node:fs');
+const assert = require('node:assert/strict');
+const elements = new Map();
+const element = key => {
+  if (!elements.has(key)) elements.set(key, { textContent: '', disabled: false, classList: { toggle() {} }, style: {} });
+  return elements.get(key);
+};
+const document = { getElementById: element, querySelector: key => element(key.replace(/^#/, '')), querySelectorAll: () => [{}, {}] };
+let response = {};
+const context = { document, URLSearchParams, URL, location: { search: '?key=test' }, Date, fetch: async () => ({ ok: true, json: async () => response }) };
+vm.createContext(context);
+const html = fs.readFileSync('backend/ui.html', 'utf8');
+let code = html.split('<script>')[1].split('</script>')[0];
+code = code.slice(0, code.indexOf('refresh().then(render)'));
+vm.runInContext(code, context);
+function update(diagnostics, running=true) {
+  context.fixture = { running, diagnostics };
+  vm.runInContext('state=fixture;step=6;mode="install";updateInstall()', context);
+}
+update({ phase:'trigger', connections:100 });
+assert.equal(element('next').disabled,true);
+assert.match(element('installStatus').textContent,/等待手机/);
+update({ phase:'trigger', installStage:'await-model-confirmation', triggerPreparedAt:Date.now()/1000-3 });
+assert.equal(element('next').disabled,true);
+assert.match(element('installStatus').textContent,/秒/);
+update({ phase:'trigger', installStage:'await-model-confirmation', triggerPreparedAt:Date.now()/1000-16 });
+assert.equal(element('next').disabled,false);
+assert.match(element('next').textContent,/新外观已显示/);
+update({ phase:'final', installStage:'await-final-confirmation', finalPreparedAt:Date.now()/1000-16 });
+assert.equal(element('next').disabled,false);
+assert.match(element('title').textContent,/收尾/);
+update({ phase:'verify', installStage:'waiting-verification' });
+assert.equal(element('next').disabled,true);
+update({ phase:'verify', installStage:'await-keep-confirmation', verificationStartedAt:Date.now()/1000-16 });
+assert.equal(element('next').disabled,false);
+update({ phase:'verify', installStage:'error', installError:'download detected' });
+assert.match(element('next').textContent,/重新应用/);
+assert.equal(element('installStatus').textContent,'download detected');
+update({}, false);
+assert.match(element('next').textContent,/重新开始/);
+assert.ok(!html.includes('获取资源'));
+assert.ok(fs.readFileSync('backend/phone.html','utf8').includes('15 秒'));
+console.log('PASS UI phases, minimum wait, truthful waiting state, stopped proxy, recovery and guidance');
+
+const main = fs.readFileSync('desktop/main.cjs','utf8');
+const prompts = main.slice(main.indexOf('function proxyExitOptions'),main.indexOf('async function request'));
+const promptContext = vm.createContext({});
+vm.runInContext(prompts,promptContext);
+assert.match(vm.runInContext("proxyExitOptions({diagnostics:{mode:'install',phase:'final'}},'退出').message",promptContext),/收尾/);
+assert.doesNotMatch(vm.runInContext("proxyExitOptions({diagnostics:{mode:'install',phase:'complete'}},'退出').message",promptContext),/收尾/);
+console.log('PASS exit and home prompts protect unfinished finalization');
