@@ -89,3 +89,5 @@ $('diagnostics').onclick = () => task(async () => { await window.helper.call('di
 window.helper.onReady(() => { ready = true; $('connection').textContent = '本地服务已就绪'; });
 window.helper.onFailure(() => { ready = false; $('connection').textContent = '服务已停止，请重新打开助手'; });
 window.helper.call('status').then(() => { ready = true; $('connection').textContent = '本地服务已就绪'; }).catch(() => {});
+
+$('usage').onclick = () => task(async () => { await window.helper.call('usage'); });

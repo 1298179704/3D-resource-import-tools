@@ -18,6 +18,7 @@ const staging = path.join(project, '.build/desktop-runtime', platform);
     await fs.cp(backendSource, path.join(staging, 'backend'), { recursive: true });
   }
   await fs.copyFile(process.env.RESOURCE_TOOL_PROFILE || path.join(project, 'profiles/service-profile.example.json'), path.join(staging, 'service-profile.json'));
+  await fs.copyFile(path.join(__dirname, 'AUTHORIZED_USE.txt'), path.join(staging, 'AUTHORIZED_USE.txt'));
   const tools = process.env.RESOURCE_TOOL_ADB_SOURCE;
   if (!tools) throw new Error('Set RESOURCE_TOOL_ADB_SOURCE to the official platform-tools directory');
   await fs.mkdir(path.join(staging, 'platform-tools'), { recursive: true });
@@ -33,7 +34,7 @@ const staging = path.join(project, '.build/desktop-runtime', platform);
   }
   const outputs = await packager({ dir: __dirname, name: 'Resource Toolkit', executableName: 'Resource Toolkit', appBundleId: 'com.resourcetoolkit.desktop', appVersion: '0.2.1', platform, arch, electronZipDir: require('node:fs').existsSync(path.join(project, '.build/downloads', 'electron-v45.3.1-' + platform + '-' + arch + '.zip')) ? path.join(project, '.build/downloads') : undefined, out: path.join(project, '.build/dist'), overwrite: true, asar: true, prune: true, ignore: [/\/runtime($|\/)/, /\/build\.cjs$/, /\/package-lock\.json$/] });
   const resources = platform === 'darwin' ? path.join(outputs[0], 'Resource Toolkit.app/Contents/Resources') : path.join(outputs[0], 'resources');
-  for (const file of ['backend', 'platform-tools', 'service-profile.json']) {
+  for (const file of ['backend', 'platform-tools', 'service-profile.json', 'AUTHORIZED_USE.txt']) {
     await fs.cp(path.join(staging, file), path.join(resources, file), { recursive: true, verbatimSymlinks: true });
   }
   const localeDir = platform === 'darwin' ? path.join(outputs[0], 'Resource Toolkit.app/Contents/Frameworks/Electron Framework.framework/Versions/A/Resources') : path.join(outputs[0], 'locales');

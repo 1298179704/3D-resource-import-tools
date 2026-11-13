@@ -89,6 +89,11 @@ async function startBackend() {
 function register() {
   ipcMain.handle('helper', async (event, action, data = {}) => {
     if (event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame || !event.senderFrame.url.startsWith('file:')) throw new Error('页面来源无效');
+    if (action === 'usage') {
+      const detail = await fs.readFile(path.join(__dirname, 'AUTHORIZED_USE.txt'), 'utf8');
+      await dialog.showMessageBox(window, { type: 'info', title: '授权使用说明', message: '仅供学习研究，请仅处理已获授权的资源', detail, buttons: ['我已了解'] });
+      return {};
+    }
     if (action === 'status') return request('status');
     if (action === 'iphone') return endpoint;
     if (action === 'home') {
