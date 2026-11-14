@@ -1,4 +1,5 @@
 """No devices are used. Emulate Android permissions, interruption and binary pipes."""
+import base64
 import hashlib
 import io
 import json
@@ -46,7 +47,12 @@ class FakePhone(AndroidBridge):
         if code.startswith('md5sum '):
             file=Path(shlex.split(translated)[1])
             return (hashlib.md5(file.read_bytes()).hexdigest()+'  file\n').encode()
-        if code.startswith('cat > ') and self.fail_write:
+        if code.startswith('base64 -d > '):
+            assert input_data.isascii()
+            assert args[:2] == ('shell', '-T')
+            input_data=base64.b64decode(input_data, validate=True)
+            translated=translated.replace('base64 -d > ', 'cat > ', 1)
+        if code.startswith('base64 -d > ') and self.fail_write:
             file=Path(shlex.split(translated)[2])
             file.write_bytes((input_data or b'')[:3])
             self.fail_write=False
@@ -90,10 +96,27 @@ class TransportTests(unittest.TestCase):
             self.assertIn('resources.json',archive.namelist())
     def test_atomic_stage_and_binary_integrity(self):
         bridge=FakePhone(self.state,self.phone)
-        content=b'ANDROID new\x00\r\n\xff'
+        content=b'ANDROID new'+bytes(range(256))*1024
         bridge.apply('test-device',bridge.target_path,package(content))
         self.assertEqual((self.phone/'mainscene.ab').read_bytes(),content)
         self.assertTrue(list((self.state/'android-backups').glob('*.zip')))
+    def test_checksum_failure_records_evidence_and_preserves_original(self):
+        bridge=FakePhone(self.state,self.phone)
+        original_command=bridge.command_bytes
+        def corrupt_checksum(*args, **kwargs):
+            if args[-1].startswith('md5sum '):
+                return b'00000000000000000000000000000000  file\n'
+            return original_command(*args, **kwargs)
+        bridge.command_bytes=corrupt_checksum
+        with self.assertRaisesRegex(ValueError,'手机资源写入校验失败'):
+            bridge.apply('test-device',bridge.target_path,package(b'ANDROID replacement'))
+        events=[json.loads(line) for line in (self.state/'android-events.jsonl').read_text().splitlines()]
+        failure=next(e for e in events if e['event']=='write-verification-failed')
+        self.assertEqual(failure['file'],'mainscene.ab')
+        self.assertEqual(failure['actualBytes'],len(b'ANDROID replacement'))
+        self.assertEqual(failure['expectedMd5'],hashlib.md5(b'ANDROID replacement').hexdigest())
+        self.assertEqual((self.phone/'mainscene.ab').read_bytes(),self.old)
+
     def test_parent_denied_existing_directory_supported(self):
         bridge=FakePhone(self.state,self.phone,staged=False)
         (self.phone/'obsolete.ab').write_bytes(b'ANDROID obsolete')

@@ -1,7 +1,7 @@
 {
   "name": "resource-toolkit",
   "productName": "资源工具",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "main": "main.cjs",
   "scripts": {

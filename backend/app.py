@@ -33,7 +33,7 @@ STATE = Path(os.environ.get('RESOURCE_TOOL_DATA', str(DEFAULT_DATA if FROZEN els
 STATE.mkdir(parents=True, exist_ok=True)
 if not (STATE / 'service-profile.json').exists() and (ROOT / 'service-profile.json').exists():
     shutil.copyfile(ROOT / 'service-profile.json', STATE / 'service-profile.json')
-VERSION = '2026-11-13-resource-toolkit-0.2.1'
+VERSION = '2026-11-14-resource-toolkit-0.2.2'
 TOKEN = os.environ.get('RESOURCE_TOOL_CONTROL_TOKEN') or secrets.token_urlsafe(24)
 PHONE_TOKEN = secrets.token_urlsafe(24)
 LOCK = threading.RLock()

@@ -1,4 +1,5 @@
 """ADB transport with streamed files and recoverable Android directory updates."""
+import base64
 from configuration_export import export_resource
 import hashlib
 import io
@@ -131,13 +132,19 @@ class AndroidBridge:
         for file in files:
             remote = target + '/' + file.relative_to(folder).as_posix()
             self.shell(serial, 'mkdir -p ' + shlex.quote(str(PurePosixPath(remote).parent)))
-            self.command_bytes('shell', '-T', 'cat > ' + shlex.quote(remote), serial=serial, input_data=file.read_bytes())
+            self.command_bytes('shell', '-T', 'base64 -d > ' + shlex.quote(remote), serial=serial, input_data=base64.b64encode(file.read_bytes()))
         for file in files:
             remote = target + '/' + file.relative_to(folder).as_posix()
             digest = hashlib.md5(file.read_bytes()).hexdigest()
             actual = self.shell(serial, 'md5sum ' + shlex.quote(remote)).split()
             if not actual or digest != actual[0]:
-                raise ValueError('手机资源写入校验失败')
+                size = None
+                try:
+                    size = int(self.shell(serial, 'wc -c < ' + shlex.quote(remote)).strip())
+                except (ValueError, OSError):
+                    pass
+                self.event('write-verification-failed', actualBytes=size, file=file.relative_to(folder).as_posix(), expectedBytes=file.stat().st_size, expectedMd5=digest, actualMd5=actual[0] if actual else None)
+                raise ValueError('手机资源写入校验失败：' + file.relative_to(folder).as_posix() + '。请保存日志。')
 
     def save_json(self, path, data):
         temporary = path.with_suffix('.tmp')
