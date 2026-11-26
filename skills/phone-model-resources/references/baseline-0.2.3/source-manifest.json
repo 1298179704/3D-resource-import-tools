@@ -1,0 +1,31 @@
+{
+  "baseline": "0.2.3 local source snapshot",
+  "filesSha256": {
+    "LICENSE": "c0d58fdeafcfa8d26890b447dcdd7d7cb59ff65dcd0a5e7790ee8cc9fda81563",
+    "tests/configuration_export.py": "930cb139689a46c7df97d2cf5e93725ed2d550b524179973e7a1a6518ec85b74",
+    "tests/resource_identity.py": "f7db43862e3ad70dc04dff80e3edf3927c9e88eeaa6c5b021cd0d9cb9c350d7a",
+    "tests/android_transport.py": "52095955369957e92866b3aa8af1908e80aacc2a898263badc7b4d5ae012b44c",
+    "tests/iphone_ui.cjs": "7f882701d5fdbd95455cebbc175705244c2c14610859e40de40a96dc4b2c54f6",
+    "tests/confirmation_api.py": "8c3fa09c2aeb9675c481d784ef0cc48667752d6d745f04a7532bf85ac31375a7",
+    "desktop/renderer.js": "0025069282583e3cd6f44c6a44f638655da2f5dc1624056c48e52202b2247cf5",
+    "desktop/index.html": "19c72170a0a8fd268f3ff8c763405beff69d8913d3bf9599538d52a4cb5fc771",
+    "desktop/preload.cjs": "3aaf7e34b5df860f3ea7261847f302257ba5031c72f1368f2d405848219a70fc",
+    "desktop/package.json": "3e3872e7705e311dd718b52958ec179fe3d37e919fb19fce782bd4aade547c83",
+    "desktop/AUTHORIZED_USE.txt": "d4402bb2a0b40fa7f27dfba6b68719b29e4fc4536b3cd4839c285aecffa722f7",
+    "desktop/style.css": "1c799eda2e2cf97467af8f401957140b1826203283a8b1dfdd817c4a3941d7ab",
+    "desktop/main.cjs": "c3fd5e35c06c9eeca004b4473c6a140df30b0dc2a410ee04a73c9963b2961464",
+    "desktop/build.cjs": "01b5e0f6b60d7d17b43fae29e39d21fb630a46ad12c49f35ce685017ce762eea",
+    "backend/phone.html": "3dea7323c691aed668f1c9f2b08fc06a18ecdc67c27d4a67f78a619fccf2f702",
+    "backend/resource_capture.py": "935a2b1f09a90274e6920f16904267bcd17aac959a9cef29a78728cbeb7f580a",
+    "backend/build_offline.py": "13c7e8ff08e814110034bef5f5ea6eeb3a0eff411960163df36b8f11e0010e27",
+    "backend/android_bridge.py": "ba22869bc38394248c568c10308eb83d4071a28cf84f599a972edbfda8c5e3d0",
+    "backend/requirements.txt": "f8e84f0cb9b2d663d89a88e692191abccdd0f524a27ce90e2d20b4fbb2ce2b99",
+    "backend/configuration_export.py": "94d1760f18000eabdde1ba2768a6467def92e0aabeb4ac58429e40d3f837fcc3",
+    "backend/bundle_check.py": "bb80b28ba2daab6ba0f3b2737b407dfd89ad74be30a15ddd63e1198b38640ac8",
+    "backend/proxy_runner.py": "ff63e1e4ad6ac29a50e8570a93174b67f45edd6e63aa97f3a04b4275dda38c93",
+    "backend/ui.html": "e5dba270189a1be8ef9147475548e43ceee74df77ec9f0493a7dbb24870095b0",
+    "backend/proxy_addon.py": "3ee07360c00d00010aa2ba264e5133dd0d611bef9b461b9aa2256fd7b558d8c4",
+    "backend/app.py": "9721fc37f604ca53c01880290d76fdc7b1ae86a43bb5060bd55e0b23504e79aa",
+    "profiles/service-profile.example.json": "495e5a36cd6aeb8498bbe49f604d92e4a95c0b19b3f196ba75799c1b3cae2f45"
+  }
+}

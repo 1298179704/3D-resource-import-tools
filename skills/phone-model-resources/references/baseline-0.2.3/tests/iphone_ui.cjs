@@ -15,14 +15,14 @@ let code = html.split('<script>')[1].split('</script>')[0];
 code = code.slice(0, code.indexOf('refresh().then(render)'));
 vm.runInContext(code, context);
 function update(diagnostics, running=true) {
-  context.fixture = { running, diagnostics };
+  context.fixture = { running, diagnostics: {session:'current', ...diagnostics} };
   vm.runInContext('state=fixture;step=6;mode="install";updateInstall()', context);
 }
 update({ phase:'trigger', connections:100 });
-assert.equal(element('next').disabled,true);
+assert.equal(element('next').disabled,false);
 assert.match(element('installStatus').textContent,/等待手机/);
 update({ phase:'trigger', installStage:'await-model-confirmation', triggerPreparedAt:Date.now()/1000-3 });
-assert.equal(element('next').disabled,true);
+assert.equal(element('next').disabled,false);
 assert.match(element('installStatus').textContent,/秒/);
 update({ phase:'trigger', installStage:'await-model-confirmation', triggerPreparedAt:Date.now()/1000-16 });
 assert.equal(element('next').disabled,false);
@@ -31,7 +31,7 @@ update({ phase:'final', installStage:'await-final-confirmation', finalPreparedAt
 assert.equal(element('next').disabled,false);
 assert.match(element('title').textContent,/收尾/);
 update({ phase:'verify', installStage:'waiting-verification' });
-assert.equal(element('next').disabled,true);
+assert.equal(element('next').disabled,false);
 update({ phase:'verify', installStage:'await-keep-confirmation', verificationStartedAt:Date.now()/1000-16 });
 assert.equal(element('next').disabled,false);
 update({ phase:'verify', installStage:'error', installError:'download detected' });

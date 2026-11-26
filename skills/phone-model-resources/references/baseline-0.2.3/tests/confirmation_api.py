@@ -30,4 +30,10 @@ with tempfile.TemporaryDirectory() as directory:
     assert control['session']=='current' and control['payloadMd5']=='c'*32
     app.confirm_installation('confirm-model',{'session':'current','confirmed':True})
     assert json.loads((root/'install-control.json').read_text())['id']==control['id']
+    (root/'install-control.json').unlink()
+    status['installStage']='waiting-resource-check'
+    status.pop('triggerPreparedAt')
+    file.write_text(json.dumps(status))
+    app.confirm_installation('confirm-model',{'session':'current','confirmed':True,'manualConfirmation':True})
+    assert json.loads((root/'install-control.json').read_text())['manualConfirmation'] is True
 print('PASS server wait guard, stale resource/session rejection and idempotent confirmation')

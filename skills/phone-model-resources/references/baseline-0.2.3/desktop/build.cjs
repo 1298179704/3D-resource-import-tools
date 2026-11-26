@@ -32,7 +32,7 @@ const staging = path.join(project, '.build/desktop-runtime', platform);
     await fs.chmod(adb, 0o755);
     execFileSync('codesign', ['--force', '--sign', '-', adb]);
   }
-  const outputs = await packager({ dir: __dirname, name: 'Resource Toolkit', executableName: 'Resource Toolkit', appBundleId: 'com.resourcetoolkit.desktop', appVersion: '0.2.2', platform, arch, electronZipDir: require('node:fs').existsSync(path.join(project, '.build/downloads', 'electron-v45.3.1-' + platform + '-' + arch + '.zip')) ? path.join(project, '.build/downloads') : undefined, out: path.join(project, '.build/dist'), overwrite: true, asar: true, prune: true, ignore: [/\/runtime($|\/)/, /\/build\.cjs$/, /\/package-lock\.json$/] });
+  const outputs = await packager({ dir: __dirname, name: 'Resource Toolkit', executableName: 'Resource Toolkit', appBundleId: 'com.resourcetoolkit.desktop', appVersion: '0.2.3', platform, arch, electronZipDir: require('node:fs').existsSync(path.join(project, '.build/downloads', 'electron-v45.3.1-' + platform + '-' + arch + '.zip')) ? path.join(project, '.build/downloads') : undefined, out: path.join(project, '.build/dist'), overwrite: true, asar: true, prune: true, ignore: [/\/runtime($|\/)/, /\/build\.cjs$/, /\/package-lock\.json$/] });
   const resources = platform === 'darwin' ? path.join(outputs[0], 'Resource Toolkit.app/Contents/Resources') : path.join(outputs[0], 'resources');
   for (const file of ['backend', 'platform-tools', 'service-profile.json', 'AUTHORIZED_USE.txt']) {
     await fs.cp(path.join(staging, file), path.join(resources, file), { recursive: true, verbatimSymlinks: true });

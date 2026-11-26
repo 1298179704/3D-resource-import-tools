@@ -63,9 +63,9 @@ function updateInstall(){
  }
  if(!state.running){$('installStatus').textContent='电脑代理已停止，请重新开始。';$('next').textContent='重新开始';$('next').disabled=busy;return}
  if(pendingAction){$('installStatus').textContent='正在准备下一步…';$('next').disabled=true;return}
- $('installStatus').textContent=seconds===null?(phase==='verify'?'等待手机重新打开模型页面…':d.detectedFilename?'等待手机继续处理资源…':'等待手机打开爱车模型页面…'):seconds>0?'请保持模型页面，建议继续停留 '+seconds+' 秒。':'已达到建议等待时间，请核对手机外观。';
+ $('installStatus').textContent=seconds===null?(phase==='verify'?'等待手机重新打开模型页面…':d.detectedFilename?'请核对手机外观，已生效即可点击继续。':'等待手机打开爱车模型页面…'):seconds>0?'请保持模型页面，建议继续停留 '+seconds+' 秒。':'已达到建议等待时间，请核对手机外观。';
  $('installHint').textContent=phase==='trigger'?'保持 App 前台至少 15 秒。若仍是原厂外观，划掉 App 后重开并继续等待，直到新外观出现。':'保持 App 前台至少 15 秒，确认新外观仍然保留。整个过程保持手机代理开启。';
- $('next').disabled=busy||d.installStage!==readyStage[phase]||seconds!==0;
+ $('next').disabled=busy||!d.session||!readyStage[phase];
 }
 function updateCapture(){
  if(!document.querySelector('#captureStatus'))return;
@@ -91,7 +91,7 @@ async function next(){
    if(!state.running||d.installStage==='error'){pendingAction=null;await call('start');await refresh();render();return}
    const action={trigger:'confirm-model',final:'confirm-final',verify:'confirm-keep'}[d.phase];
    if(!action)throw Error('状态正在更新，请稍候');
-   await call(action,JSON.stringify({session:d.session,confirmed:true}));pendingAction=action;await refresh();return;
+   await call(action,JSON.stringify({session:d.session,confirmed:true,manualConfirmation:true}));pendingAction=action;await refresh();return;
   }
   if(step===7){await call('stop');await refresh();step=mode==='capture'?9:8;render();return}
   if(step===8){await call('confirm-disconnected',JSON.stringify({session:state.diagnostics?.session,confirmed:true}));step=9;render();return}

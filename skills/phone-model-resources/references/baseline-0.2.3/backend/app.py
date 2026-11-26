@@ -33,7 +33,7 @@ STATE = Path(os.environ.get('RESOURCE_TOOL_DATA', str(DEFAULT_DATA if FROZEN els
 STATE.mkdir(parents=True, exist_ok=True)
 if not (STATE / 'service-profile.json').exists() and (ROOT / 'service-profile.json').exists():
     shutil.copyfile(ROOT / 'service-profile.json', STATE / 'service-profile.json')
-VERSION = '2026-11-14-resource-toolkit-0.2.2'
+VERSION = '2026-11-14-resource-toolkit-0.2.3'
 TOKEN = os.environ.get('RESOURCE_TOOL_CONTROL_TOKEN') or secrets.token_urlsafe(24)
 PHONE_TOKEN = secrets.token_urlsafe(24)
 LOCK = threading.RLock()
@@ -117,7 +117,7 @@ def start(mode="install"):
         profile_path = STATE / 'service-profile.json'
         if not profile_path.exists():
             raise ValueError('缺少服务适配配置，请联系工具提供者')
-        profile = json.loads(profile_path.read_text())
+        profile = json.loads(profile_path.read_text(encoding='utf-8'))
         allowed = '^(' + '|'.join(re.escape(profile[k]) for k in ('metadata_host', 'download_host')) + '):443$'
         (STATE / 'connection-status.json').unlink(missing_ok=True)
         (STATE / 'install-control.json').unlink(missing_ok=True)
@@ -153,16 +153,17 @@ def confirm_installation(action, data):
         raise ValueError('资源任务已更新，请按当前页面继续。')
     if data.get('confirmed') is not True:
         raise ValueError('请先确认手机上的模型显示结果。')
-    if status.get('phase') != phase or status.get('installStage') != stage:
+    manual = data.get('manualConfirmation') is True
+    if status.get('phase') != phase or status.get('installStage') == 'error' or (not manual and status.get('installStage') != stage):
         raise ValueError(status.get('installError') or '请先完成当前手机操作。')
-    if time.time() - status.get(timestamp, time.time()) < 15:
+    if not manual and time.time() - status.get(timestamp, time.time()) < 15:
         raise ValueError('请在手机模型页面至少停留 15 秒，并确认外观。')
     control = STATE / 'install-control.json'
     if control.exists():
-        previous = json.loads(control.read_text())
+        previous = json.loads(control.read_text(encoding='utf-8'))
         if previous.get('session') == status['session'] and previous.get('action') == action:
             return {'queued': True}
-    command = {'id': secrets.token_hex(16), 'session': status['session'], 'payloadMd5': INFO['md5'], 'action': action}
+    command = {'id': secrets.token_hex(16), 'session': status['session'], 'payloadMd5': INFO['md5'], 'action': action, 'manualConfirmation': manual}
     temporary = control.with_suffix('.tmp')
     temporary.write_text(json.dumps(command), encoding='utf-8')
     temporary.replace(control)
@@ -244,7 +245,7 @@ class Handler(BaseHTTPRequestHandler):
             for name in ('capture-status', 'connection-status'):
                 file = STATE / (name + '.json')
                 report[name] = json.loads(file.read_text(encoding='utf-8')) if file.exists() else None
-            profile = json.loads((STATE / 'service-profile.json').read_text()) if (STATE / 'service-profile.json').exists() else {}
+            profile = json.loads((STATE / 'service-profile.json').read_text(encoding='utf-8')) if (STATE / 'service-profile.json').exists() else {}
             report['selectedPackage'] = INFO
             report['installationEvents'] = recent_events('install-events.jsonl')
             report['androidEvents'] = recent_events('android-events.jsonl')
@@ -269,7 +270,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/status':
             with LOCK:
                 running = bool(PROCESS and PROCESS.poll() is None)
-                log = LOG.read_text(errors='replace')[-12000:] if LOG.exists() else ''
+                log = LOG.read_text(encoding='utf-8', errors='replace')[-12000:] if LOG.exists() else ''
                 return self.reply(200, json.dumps({'version': VERSION, 'diagnostics': json.loads((STATE / 'connection-status.json').read_text(encoding='utf-8')) if (STATE / 'connection-status.json').exists() else {}, 'probeUrl': 'http://local-helper.invalid/check?key=' + PHONE_TOKEN, 'package': INFO, 'running': running, 'stoppedAt': STOPPED_AT, 'phone': f'http://{local_ip()}:{PORT}/phone?key={PHONE_TOKEN}', 'log': log, 'capture': json.loads((STATE / 'capture-status.json').read_text(encoding='utf-8')) if (STATE / 'capture-status.json').exists() else None}), 'application/json')
         return self.reply(404, '未找到')
 
@@ -285,7 +286,7 @@ class Handler(BaseHTTPRequestHandler):
                     if not 0 < size <= 2048:
                         raise ValueError('确认信息无效')
                     data = json.loads(self.rfile.read(size))
-                    status = json.loads((STATE / 'connection-status.json').read_text())
+                    status = json.loads((STATE / 'connection-status.json').read_text(encoding='utf-8'))
                     if PROCESS and PROCESS.poll() is None:
                         raise ValueError('请先关闭手机代理并停止电脑代理。')
                     if data.get('session') != status.get('session') or status.get('phase') != 'complete' or status.get('installStage') != 'complete' or status.get('selectedMd5') != INFO.get('md5'):

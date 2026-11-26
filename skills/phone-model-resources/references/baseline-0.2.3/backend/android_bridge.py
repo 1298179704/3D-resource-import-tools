@@ -55,7 +55,7 @@ class AndroidBridge:
         return rows
 
     def root(self):
-        profile = json.loads((self.state / 'service-profile.json').read_text())
+        profile = json.loads((self.state / 'service-profile.json').read_text(encoding='utf-8'))
         package = profile.get('android_package', '')
         if not re.fullmatch(r'[A-Za-z0-9_.]+', package):
             raise ValueError('缺少安卓应用配置')
@@ -155,7 +155,7 @@ class AndroidBridge:
         temporary.replace(path)
 
     def recover(self, serial, target, journal, backup, directory):
-        transaction = json.loads(journal.read_text())
+        transaction = json.loads(journal.read_text(encoding='utf-8'))
         if transaction.get('target') != target or transaction.get('backupSha256') != hashlib.sha256(backup.read_bytes()).hexdigest():
             raise ValueError('中断备份校验失败，请保存日志后联系支持')
         original = Path(directory) / ('rollback-' + uuid.uuid4().hex)
@@ -194,7 +194,7 @@ class AndroidBridge:
                 if not bundles or any(not ios_bundle(archive.read(n), platform=13) for n in bundles):
                     raise ValueError('请选择 Android 平台资源包')
                 archive.extractall(folder)
-            profile = json.loads((self.state / 'service-profile.json').read_text())
+            profile = json.loads((self.state / 'service-profile.json').read_text(encoding='utf-8'))
             stage = target + '.helper-stage-' + uuid.uuid4().hex
             old = target + '.helper-backup'
             q = shlex.quote

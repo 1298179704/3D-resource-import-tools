@@ -85,4 +85,8 @@ with tempfile.TemporaryDirectory() as directory:
     # Stock restoration also needs a fresh update identity when ZIP checksum already equals official identity.
     proxy=namespace['ResourceProxy']()
     assert metadata(md5=proxy.digest)['data']['md5']!=proxy.digest
+    command={'id':'manual-no-response','session':proxy.session,'payloadMd5':proxy.digest,'action':'confirm-model','manualConfirmation':True}
+    (root/'install-control.json').write_text(json.dumps(command))
+    proxy.apply_control()
+    assert proxy.phase=='final'
 print('PASS manual confirmation, 15-second guards, segmented coverage, stable identities, stale sessions, official pass-through, interrupted URL retries, changed resources and re-download detection')

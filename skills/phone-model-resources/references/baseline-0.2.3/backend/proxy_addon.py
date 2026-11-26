@@ -22,13 +22,13 @@ class ResourceProxy:
             import sys
             sys.path.insert(0, str(self.root))
             from resource_capture import OfficialCapture
-            profile = json.loads((self.root / 'service-profile.json').read_text())
+            profile = json.loads((self.root / 'service-profile.json').read_text(encoding='utf-8'))
             self.capture = OfficialCapture(self.root, profile)
             return
         self.payload = (self.root / 'selected.zip').read_bytes()
         self.digest = hashlib.md5(self.payload).hexdigest()
         self.sha256 = hashlib.sha256(self.payload).hexdigest()
-        self.profile = json.loads((self.root / 'service-profile.json').read_text())
+        self.profile = json.loads((self.root / 'service-profile.json').read_text(encoding='utf-8'))
         self.target = None
         self.identity = None
         self.phase = 'trigger'
@@ -67,7 +67,7 @@ class ResourceProxy:
         if self.capture or self.failed:
             return
         try:
-            command = json.loads((self.root / 'install-control.json').read_text())
+            command = json.loads((self.root / 'install-control.json').read_text(encoding='utf-8'))
         except (OSError, ValueError):
             return
         if not isinstance(command, dict):
@@ -84,13 +84,14 @@ class ResourceProxy:
         if action not in transitions:
             return
         previous, stage, timestamp, following, next_stage = transitions[action]
-        if self.phase != previous or self.diagnostics.get('installStage') != stage:
+        manual = command.get('manualConfirmation') is True
+        if self.phase != previous or (not manual and self.diagnostics.get('installStage') != stage):
             return
-        if time.time() - self.diagnostics.get(timestamp, time.time()) < WAIT_SECONDS:
+        if not manual and time.time() - self.diagnostics.get(timestamp, time.time()) < WAIT_SECONDS:
             return
         self.last_control_id = command['id']
         self.phase = following
-        self.event(action, userConfirmed=True)
+        self.event(action, userConfirmed=True, confirmationSource='user-manual' if manual else 'response-and-user')
         self.record_diagnostics(phase=self.phase, installStage=next_stage, lastConfirmation=action, confirmedAt=time.time())
 
     def done(self):
